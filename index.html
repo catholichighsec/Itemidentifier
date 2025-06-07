@@ -1,32 +1,180 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <meta content="webcam capture for form" name="description">
-    <meta content="Display Webcam Stream" name="title">
-    <title>Webcam Capture for Google Form</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Teachable Machine with Google Form Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .container {
+            text-align: center;
+        }
+        
+        #webcam-container {
+            margin: 20px auto;
+            border: 2px solid #333;
+            padding: 10px;
+        }
+        
+        #label-container {
+            margin: 20px auto;
+            padding: 10px;
+            background: #f0f0f0;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        #status {
+            margin: 10px;
+            color: #666;
+        }
+    </style>
 </head>
- 
 <body>
-    <div id="container">
-        <video autoplay="true" id="videoElement"></video>
-    </div>
-    <div id="controls">
-        <button id="captureBtn">Capture Image</button>
-        <button id="submitBtn">Submit to Form</button>
-    </div>
-    <div id="preview">
-        <canvas id="canvas" style="display:none;"></canvas>
-        <img id="capturedImage" style="display:none; max-width: 500px;">
-    </div>
-    <div id="status"></div>
+    <div class="container">
+        <h1>Teachable Machine Image Model</h1>
+        <button type="button" onclick="init()">Start Camera</button>
+        <button type="button" onclick="submitToForm()" id="submitBtn" disabled>Submit to Form</button>
+        <div id="webcam-container"></div>
+        <div id="label-container"></div>
+        <div id="status"></div>
 
-    <!-- Replace these with your actual Google Form details -->
-    <form id="googleForm" target="_blank" action="https://docs.google.com/forms/d/e/1FAIpQLSfdB1cHzMq6jdj2KjtOPEN5Y9uEgpS1kVURv8ZxoGPoi5Yg_w/viewform" method="POST">
-        <input type="hidden" name="entry.1517140113" id="imageData">
-    </form>
+        <!-- Replace with your Google Form details -->
+        <form id="googleForm" target="_blank" action="YOUR_GOOGLE_FORM_URL" method="POST" style="display:none;">
+            <input type="hidden" name="entry.PREDICTION_FIELD_ID" id="predictionData">
+            <input type="hidden" name="entry.IMAGE_FIELD_ID" id="imageData">
+        </form>
+    </div>
 
-    <script src="webcam.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript">
+        // Replace with your model URL
+        const URL = "./my_model/";
+        
+        let model, webcam, labelContainer, maxPredictions;
+        let currentPredictions = [];
+        let isRunning = false;
+
+        // Load the image model and setup the webcam
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+            
+            try {
+                // Show loading status
+                document.getElementById('status').textContent = "Loading model...";
+                
+                // Load model
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                // Setup webcam
+                const flip = true;
+                webcam = new tmImage.Webcam(200, 200, flip);
+                
+                document.getElementById('status').textContent = "Requesting camera access...";
+                await webcam.setup();
+                await webcam.play();
+                
+                // Enable submit button
+                document.getElementById('submitBtn').disabled = false;
+                
+                // Start prediction loop
+                isRunning = true;
+                window.requestAnimationFrame(loop);
+
+                // Setup DOM
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+                labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = ''; // Clear existing content
+                for (let i = 0; i < maxPredictions; i++) {
+                    labelContainer.appendChild(document.createElement("div"));
+                }
+                
+                document.getElementById('status').textContent = "Model ready!";
+                
+            } catch (error) {
+                document.getElementById('status').textContent = "Error: " + error.message;
+                console.error(error);
+            }
+        }
+
+        async function loop() {
+            if (!isRunning) return;
+            
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            try {
+                const prediction = await model.predict(webcam.canvas);
+                currentPredictions = prediction; // Store current predictions
+                
+                // Update display
+                for (let i = 0; i < maxPredictions; i++) {
+                    const classPrediction =
+                        prediction[i].className + ": " + 
+                        (prediction[i].probability * 100).toFixed(2) + "%";
+                    labelContainer.childNodes[i].innerHTML = classPrediction;
+                }
+            } catch (error) {
+                console.error("Prediction error:", error);
+                document.getElementById('status').textContent = "Prediction error: " + error.message;
+            }
+        }
+
+        function submitToForm() {
+            try {
+                // Get current image from webcam
+                const imageData = webcam.canvas.toDataURL('image/jpeg', 0.8);
+                
+                // Format predictions
+                const predictionText = currentPredictions
+                    .map(p => `${p.className}: ${(p.probability * 100).toFixed(2)}%`)
+                    .join('\n');
+                
+                // Set form values
+                document.getElementById('predictionData').value = predictionText;
+                document.getElementById('imageData').value = imageData;
+                
+                // Submit form
+                document.getElementById('googleForm').submit();
+                
+                document.getElementById('status').textContent = "Submitted to form successfully!";
+                
+            } catch (error) {
+                document.getElementById('status').textContent = "Submission error: " + error.message;
+                console.error("Submission error:", error);
+            }
+        }
+
+        // Cleanup function
+        window.onbeforeunload = function() {
+            if (webcam) {
+                webcam.stop();
+            }
+            isRunning = false;
+        };
+    </script>
 </body>
 </html>
