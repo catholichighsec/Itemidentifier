@@ -171,6 +171,16 @@
             }
         }
 
+       
+        // Cleanup function
+        window.onbeforeunload = function() {
+            if (webcam) {
+                webcam.stop();
+            }
+            isRunning = false;
+        };
+    </script>
+
 <!-- Add this to your HTML where you want the text field to appear -->
 <div class="output-container" style="margin: 20px 0;">
     <textarea id="outputText" rows="4" cols="50" readonly 
@@ -253,14 +263,5 @@ button:hover {
     background-color: #45a049;
 }
 </style>
-        
-        // Cleanup function
-        window.onbeforeunload = function() {
-            if (webcam) {
-                webcam.stop();
-            }
-            isRunning = false;
-        };
-    </script>
 </body>
 </html>
