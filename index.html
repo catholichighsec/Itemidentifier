@@ -181,7 +181,6 @@
         };
     </script>
 
-<!-- Add this to your HTML where you want the text field to appear -->
 <div class="output-container" style="margin: 20px 0;">
     <textarea id="outputText" rows="4" cols="50" readonly 
         style="width: 100%; max-width: 400px; padding: 10px; margin-bottom: 10px;"></textarea>
@@ -189,7 +188,6 @@
         style="padding: 5px 10px; cursor: pointer;">Copy Output</button>
 </div>
 
-<!-- Add this script -->
 <script>
 // Function to update the output text
 function updateOutput(predictions) {
@@ -198,22 +196,48 @@ function updateOutput(predictions) {
     
     // Format the predictions
     let outputText = `Time: ${timestamp}\n`;
+    
+    // Add all predictions
     predictions.forEach(prediction => {
         outputText += `${prediction.className}: ${(prediction.probability * 100).toFixed(1)}%\n`;
     });
+    
+    // Add predicted output line for >75% predictions
+    const highConfidencePredictions = predictions.filter(p => p.probability > 0.75);
+    if (highConfidencePredictions.length > 0) {
+        const predictedCase = highConfidencePredictions[0].className;
+        outputText += `Predicted Output: ${predictedCase}`;
+    } else {
+        outputText += `Predicted Output: No confident prediction (>75% threshold)`;
+    }
     
     // Update textarea
     textarea.value = outputText;
 }
 
-// Function to copy the output
+// Function to copy only the predicted case
 function copyOutput() {
     const textarea = document.getElementById('outputText');
-    textarea.select();
-    document.execCommand('copy');
+    const text = textarea.value;
     
-    // Show feedback (optional)
-    alert('Output copied to clipboard!');
+    // Extract just the predicted case
+    const match = text.match(/Predicted Output: (.*)/);
+    if (match && match[1]) {
+        const predictedCase = match[1];
+        
+        // Create temporary textarea to copy from
+        const tempTextarea = document.createElement('textarea');
+        tempTextarea.value = predictedCase;
+        document.body.appendChild(tempTextarea);
+        tempTextarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempTextarea);
+        
+        // Show feedback
+        alert('Predicted case copied to clipboard!');
+    } else {
+        alert('No prediction to copy!');
+    }
 }
 
 // Update your predict function
@@ -236,7 +260,6 @@ async function predict() {
 }
 </script>
 
-<!-- Optional: Add some basic styling -->
 <style>
 .output-container {
     margin: 20px 0;
