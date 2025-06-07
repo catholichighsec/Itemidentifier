@@ -171,6 +171,89 @@
             }
         }
 
+<!-- Add this to your HTML where you want the text field to appear -->
+<div class="output-container" style="margin: 20px 0;">
+    <textarea id="outputText" rows="4" cols="50" readonly 
+        style="width: 100%; max-width: 400px; padding: 10px; margin-bottom: 10px;"></textarea>
+    <button onclick="copyOutput()" 
+        style="padding: 5px 10px; cursor: pointer;">Copy Output</button>
+</div>
+
+<!-- Add this script -->
+<script>
+// Function to update the output text
+function updateOutput(predictions) {
+    const textarea = document.getElementById('outputText');
+    const timestamp = new Date().toLocaleString();
+    
+    // Format the predictions
+    let outputText = `Time: ${timestamp}\n`;
+    predictions.forEach(prediction => {
+        outputText += `${prediction.className}: ${(prediction.probability * 100).toFixed(1)}%\n`;
+    });
+    
+    // Update textarea
+    textarea.value = outputText;
+}
+
+// Function to copy the output
+function copyOutput() {
+    const textarea = document.getElementById('outputText');
+    textarea.select();
+    document.execCommand('copy');
+    
+    // Show feedback (optional)
+    alert('Output copied to clipboard!');
+}
+
+// Update your predict function
+async function predict() {
+    try {
+        const prediction = await model.predict(webcam.canvas);
+        for (let i = 0; i < maxPredictions; i++) {
+            const classPrediction =
+                prediction[i].className + ": " + 
+                prediction[i].probability.toFixed(2);
+            labelContainer.childNodes[i].innerHTML = classPrediction;
+        }
+        
+        // Add this line to update the output text
+        updateOutput(prediction);
+        
+    } catch (error) {
+        console.error("Prediction error:", error);
+    }
+}
+</script>
+
+<!-- Optional: Add some basic styling -->
+<style>
+.output-container {
+    margin: 20px 0;
+}
+
+#outputText {
+    font-family: monospace;
+    resize: none;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+</style>
+        
         // Cleanup function
         window.onbeforeunload = function() {
             if (webcam) {
