@@ -82,9 +82,11 @@
                 // Show loading status
                 document.getElementById('status').textContent = "Loading model...";
                 
-                // Load model
-                model = await tmImage.load(modelURL, metadataURL);
-                maxPredictions = model.getTotalClasses();
+                // Load model with explicit error handling
+                model = await tmImage.load(modelURL, metadataURL).catch(e => {
+                console.error("Model load error:", e);
+                throw e;
+            });
 
                 // Setup webcam
                 const flip = true;
@@ -112,10 +114,11 @@
                 document.getElementById('status').textContent = "Model ready!";
                 
             } catch (error) {
-                document.getElementById('status').textContent = "Error: " + error.message;
-                console.error(error);
-            }
-        }
+        console.error("Initialization error:", error);
+        document.getElementById('status').textContent = 
+            "Error loading model: " + error.message;
+    }
+}
 
         async function loop() {
             if (!isRunning) return;
